@@ -14,7 +14,7 @@ def parse_inline(text):
         url = match.group(2)
         url = url.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
         if url.startswith('../'):
-            url = '../../' + url[3:]
+            url = url[3:]
         return '<img src="{}" alt="{}" class="markdown-image">'.format(url, alt)
         
     text = re.sub(r'!\[([^\]]*)\]\(([^()]*(?:\([^()]*\)[^()]*)*)\)', img_replacer, text)
@@ -233,28 +233,29 @@ def md_to_html(md_text):
         
     return "\n".join(html_lines)
 
+file_mapping = {
+    "00_课程导读与大纲.md": "index.html",
+    "01_第一讲_软件质量与管理概述.md": "01_intro.html",
+    "02_第二讲_软件过程的历史演变.md": "02_evolution.html",
+    "03_第三讲_团队动力学(PSP,TSP,Scrum).md": "03_dynamics.html",
+    "04_第四讲_软件估算、计划与跟踪(PROBE,EVM).md": "04_estimation.html",
+    "05_第五讲_软件质量管理与设计验证.md": "05_quality.html",
+    "06_第六讲_团队工程开发.md": "06_engineering.html",
+    "07_第七讲_项目支持活动(配置管理,度量,决策与根因分析).md": "07_support.html",
+    "08_课件练习题精解与考点复习.md": "08_exercises.html",
+    "09_2023年期末真题.md": "09_exam_2023.html"
+}
+
 def process_all():
     src_dir = os.path.dirname(os.path.abspath(__file__))
-    dest_dir = os.path.join(src_dir, "html_version")
-    os.makedirs(dest_dir, exist_ok=True)
+    dest_dir = os.path.dirname(src_dir)
     
-    files = [
-        "00_课程导读与大纲.md",
-        "01_第一讲_软件质量与管理概述.md",
-        "02_第二讲_软件过程的历史演变.md",
-        "03_第三讲_团队动力学(PSP,TSP,Scrum).md",
-        "04_第四讲_软件估算、计划与跟踪(PROBE,EVM).md",
-        "05_第五讲_软件质量管理与设计验证.md",
-        "06_第六讲_团队工程开发.md",
-        "07_第七讲_项目支持活动(配置管理,度量,决策与根因分析).md",
-        "08_课件练习题精解与考点复习.md",
-        "09_2023年期末真题.md"
-    ]
+    files = list(file_mapping.keys())
     
     # Generate sidebar nav HTML
     nav_items_html = ""
     for f in files:
-        html_filename = f.replace(".md", ".html")
+        html_filename = file_mapping[f]
         display_name = f.replace(".md", "").split("_", 1)[-1]
         display_name = display_name.replace("_", " ")
         # Strip parentheses and their content from the sidebar navigation
@@ -1165,11 +1166,11 @@ def process_all():
     <script>
         // Set current page global variables
         const currentPath = window.location.pathname;
-        let currentFile = '00_课程导读与大纲.html';
+        let currentFile = 'index.html';
         try {
-            currentFile = decodeURIComponent(currentPath.substring(currentPath.lastIndexOf('/') + 1)) || '00_课程导读与大纲.html';
+            currentFile = decodeURIComponent(currentPath.substring(currentPath.lastIndexOf('/') + 1)) || 'index.html';
         } catch(e) {
-            currentFile = currentPath.substring(currentPath.lastIndexOf('/') + 1) || '00_课程导读与大纲.html';
+            currentFile = currentPath.substring(currentPath.lastIndexOf('/') + 1) || 'index.html';
         }
         const storageKey = 'quiz_answers_' + currentFile;
 
@@ -1193,7 +1194,7 @@ def process_all():
             let currentTitleText = "首页";
             navItems.forEach(item => {
                 const targetFilename = item.getAttribute('data-filename');
-                if (currentFile === targetFilename || (currentFile === '' && targetFilename === '00_课程导读与大纲.html')) {
+                if (currentFile === targetFilename || (currentFile === '' && targetFilename === 'index.html')) {
                     item.classList.add('active');
                     currentTitleText = item.textContent;
                 }
@@ -1689,7 +1690,7 @@ def process_all():
     # Process each markdown file to replace relative links and output beautiful HTML files
     for f in files:
         md_path = os.path.join(src_dir, f)
-        html_filename = f.replace(".md", ".html")
+        html_filename = file_mapping[f]
         dest_path = os.path.join(dest_dir, html_filename)
         
         with open(md_path, "r", encoding="utf-8") as file:
@@ -1699,10 +1700,12 @@ def process_all():
         def link_replacer(match):
             anchor_text = match.group(1)
             url = match.group(2)
-            if url.endswith('.md'):
-                url = url[:-3] + '.html'
+            basename = os.path.basename(url)
+            if basename in file_mapping:
+                mapped_html = file_mapping[basename]
+                url = mapped_html
                 if anchor_text.endswith('.md'):
-                    anchor_text = anchor_text[:-3] + '.html'
+                    anchor_text = mapped_html
             return "[{}]({})".format(anchor_text, url)
             
         content_replaced = re.sub(r'\[([^\]]+)\]\(([^()]*(?:\([^()]*\)[^()]*)*)\)', link_replacer, md_text)
