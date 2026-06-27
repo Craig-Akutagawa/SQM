@@ -242,7 +242,7 @@ file_mapping = {
     "05_第五讲_软件质量管理与设计验证.md": "05_quality.html",
     "06_第六讲_团队工程开发.md": "06_engineering.html",
     "07_第七讲_项目支持活动(配置管理,度量,决策与根因分析).md": "07_support.html",
-    "08_课件练习题精解与考点复习.md": "08_exercises.html",
+    "08_练习题.md": "08_exercises.html",
     "09_2023年期末真题.md": "09_exam_2023.html"
 }
 
@@ -1067,6 +1067,11 @@ def process_all():
             color: var(--accent-red-text);
             border: 1px solid var(--accent-red-border);
         }
+        .result-alert-box.alert-submitted {
+            background-color: var(--primary-light);
+            color: var(--primary);
+            border: 1.5px solid var(--primary);
+        }
         .quiz-correct-answer-text {
             font-size: 1rem;
             color: var(--text-headings);
@@ -1332,8 +1337,8 @@ def process_all():
         }
         
         function initDashboardAndTabs(totalQuizzes) {
-            const isTargetPage = currentFile === '09_2023年期末真题.html' || currentFile === '08_课件练习题精解与考点复习.html';
-            const hasTabs = currentFile === '09_2023年期末真题.html';
+            const isTargetPage = currentFile === '09_exam_2023.html' || currentFile === '08_exercises.html';
+            const hasTabs = currentFile === '09_exam_2023.html';
             
             if (isTargetPage) {
                 const container = document.getElementById('markdown-rendered');
@@ -1425,7 +1430,7 @@ def process_all():
                 }
                 
                 document.getElementById('dash-reset-all').addEventListener('click', () => {
-                    if (confirm('确认要重置本页所有选择题做题记录吗？这会清除所有已保存的选择和对错状态。')) {
+                    if (confirm('确认要重置本页所有选择题练习记录吗？这会清除所有已保存的选择记录。')) {
                         localStorage.removeItem(storageKey);
                         window.location.reload();
                     }
@@ -1441,41 +1446,31 @@ def process_all():
             dashboard.className = 'progress-dashboard';
             dashboard.innerHTML = `
                 <div class="dashboard-info">
-                    <div class="dashboard-stat-box">
-                        <span class="dashboard-stat-label">总刷题进度</span>
+                    <div class="dashboard-stat-box" style="flex: 1;">
+                        <span class="dashboard-stat-label">练习进度</span>
                         <span class="dashboard-stat-value" id="dash-progress-text">0 / 0</span>
                         <div class="dashboard-progress-container">
                             <div class="dashboard-progress-bar" id="dash-progress-bar"></div>
                         </div>
                     </div>
-                    <div class="dashboard-stat-box">
-                        <span class="dashboard-stat-label">当前正确率</span>
-                        <span class="dashboard-stat-value" id="dash-accuracy-text">-%</span>
-                    </div>
                 </div>
-                <button class="reset-all-btn" id="dash-reset-all">🧹 重置本页所有做题记录</button>
+                <button class="reset-all-btn" id="dash-reset-all">🧹 重置本页所有练习记录</button>
             `;
             return dashboard;
         }
         
         function updateDashboard() {
-            const isTargetPage = currentFile === '09_2023年期末真题.html' || currentFile === '08_课件练习题精解与考点复习.html';
+            const isTargetPage = currentFile === '09_exam_2023.html' || currentFile === '08_exercises.html';
             if (isTargetPage && window.totalQuizzesCount !== undefined) {
                 const savedAnswers = loadAllSavedAnswers();
                 const total = window.totalQuizzesCount;
                 const completed = Object.keys(savedAnswers).length;
-                let correctCount = 0;
-                
-                Object.values(savedAnswers).forEach(ans => {
-                    if (ans && ans.isCorrect) correctCount++;
-                });
-                
                 const progressPercent = total > 0 ? (completed / total) * 100 : 0;
-                const accuracyPercent = completed > 0 ? Math.round((correctCount / completed) * 100) : 0;
                 
-                document.getElementById('dash-progress-text').textContent = `${completed} / ${total} 题`;
-                document.getElementById('dash-progress-bar').style.width = `${progressPercent}%`;
-                document.getElementById('dash-accuracy-text').textContent = completed > 0 ? `${accuracyPercent}%` : '-%';
+                const progressTextEl = document.getElementById('dash-progress-text');
+                const progressBarEl = document.getElementById('dash-progress-bar');
+                if (progressTextEl) progressTextEl.textContent = `${completed} / ${total} 题`;
+                if (progressBarEl) progressBarEl.style.width = `${progressPercent}%`;
             }
         }
 
@@ -1488,21 +1483,15 @@ def process_all():
                 
                 const lis = Array.from(ul.children);
                 let optItems = [];
-                let answerItem = null;
-                let explanationItem = null;
                 
                 lis.forEach(li => {
                     const text = li.textContent.trim();
                     if (/^[A-G][.．、\\s]/i.test(text)) {
                         optItems.push(li);
-                    } else if (text.includes('正确答案') || text.startsWith('答案')) {
-                        answerItem = li;
-                    } else if (text.includes('解析') || text.startsWith('说明')) {
-                        explanationItem = li;
                     }
                 });
                 
-                if (optItems.length >= 2 && answerItem) {
+                if (optItems.length >= 2) {
                     const currentQuizIdx = quizIndex++;
                     
                     let prevHeading = ul.previousElementSibling;
@@ -1510,13 +1499,7 @@ def process_all():
                         prevHeading = prevHeading.previousElementSibling;
                     }
                     
-                    const questionText = prevHeading ? prevHeading.innerHTML : "选择题";
-                    
-                    let correctStr = answerItem.textContent.replace(/正确答案/g, '').replace(/答案/g, '').replace(/[:：]/g, '').trim();
-                    const correctLetters = correctStr.toUpperCase().replace(/[^A-G]/g, '').split('');
-                    const isMulti = correctLetters.length > 1;
-                    
-                    const explanationHTML = explanationItem ? explanationItem.innerHTML.replace(/解析/g, '').replace(/[:：]/g, '').trim() : "无详细解析。";
+                    const questionText = prevHeading ? prevHeading.innerHTML : "练习题";
                     
                     const optionsData = optItems.map(opt => {
                         const text = opt.textContent.trim();
@@ -1535,7 +1518,7 @@ def process_all():
                     qHeader.className = 'quiz-header';
                     qHeader.innerHTML = `
                         <span class="quiz-number">第 ${currentQuizIdx + 1} 题</span>
-                        <span class="quiz-type-badge ${isMulti ? 'badge-multi' : ''}">${isMulti ? '多选题' : '单选题'}</span>
+                        <span class="quiz-type-badge">练习题</span>
                     `;
                     card.appendChild(qHeader);
                     
@@ -1559,12 +1542,8 @@ def process_all():
                         optLi.addEventListener('click', () => {
                             if (card.classList.contains('submitted')) return;
                             
-                            if (isMulti) {
-                                optLi.classList.toggle('selected');
-                            } else {
-                                qOptsList.querySelectorAll('.quiz-option-item').forEach(item => item.classList.remove('selected'));
-                                optLi.classList.add('selected');
-                            }
+                            // Allow toggling multiple options by default for flexibility
+                            optLi.classList.toggle('selected');
                             
                             const hasSelection = qOptsList.querySelector('.quiz-option-item.selected') !== null;
                             submitBtn.disabled = !hasSelection;
@@ -1579,13 +1558,13 @@ def process_all():
                     
                     const submitBtn = document.createElement('button');
                     submitBtn.className = 'quiz-submit-btn';
-                    submitBtn.textContent = '提交答案';
+                    submitBtn.textContent = '保存答案';
                     submitBtn.disabled = true;
                     actionsDiv.appendChild(submitBtn);
                     
                     const resetBtn = document.createElement('button');
                     resetBtn.className = 'quiz-reset-btn';
-                    resetBtn.textContent = '重置';
+                    resetBtn.textContent = '修改答案';
                     resetBtn.style.display = 'none';
                     actionsDiv.appendChild(resetBtn);
                     
@@ -1604,43 +1583,23 @@ def process_all():
                         qOptsList.querySelectorAll('.quiz-option-item').forEach(item => {
                             item.classList.add('disabled');
                             const letter = item.getAttribute('data-letter');
-                            const isCorrect = correctLetters.includes(letter);
                             const isSelected = selectedLetters.includes(letter);
-                            
-                            if (isCorrect && isSelected) {
-                                item.classList.add('correct-choice');
-                            } else if (!isCorrect && isSelected) {
-                                item.classList.add('incorrect-choice');
-                            } else if (isCorrect && !isSelected) {
-                                item.classList.add('missed-correct');
+                            if (isSelected) {
+                                item.classList.add('selected');
                             }
                         });
-                        
-                        let isFullyCorrect = true;
-                        if (selectedLetters.length !== correctLetters.length) {
-                            isFullyCorrect = false;
-                        } else {
-                            selectedLetters.forEach(l => {
-                                if (!correctLetters.includes(l)) isFullyCorrect = false;
-                            });
-                        }
                         
                         const resultDiv = document.createElement('div');
                         resultDiv.className = 'quiz-result-panel';
                         
                         resultDiv.innerHTML = `
-                            <div class="result-alert-box ${isFullyCorrect ? 'alert-correct' : 'alert-incorrect'}">
-                                <span>${isFullyCorrect ? '✅ 回答正确！太棒了！' : '❌ 回答错误，再思考一下吧！'}</span>
-                            </div>
-                            <div class="quiz-correct-answer-text">正确答案是：<strong style="color: var(--accent-green-text); font-size: 1.15rem;">${correctLetters.join(', ')}</strong></div>
-                            <div class="quiz-explanation-panel">
-                                <div class="explanation-title-box">💡 解析</div>
-                                <div class="explanation-content-box">${explanationHTML}</div>
+                            <div class="result-alert-box alert-submitted">
+                                <span>💾 已保存你的答案：${selectedLetters.join(', ')}</span>
                             </div>
                         `;
                         card.appendChild(resultDiv);
                         
-                        saveUserAnswer(currentQuizIdx, selectedLetters, isFullyCorrect);
+                        saveUserAnswer(currentQuizIdx, selectedLetters, true);
                         updateDashboard();
                     };
                     
@@ -1652,7 +1611,7 @@ def process_all():
                     
                     resetBtn.addEventListener('click', () => {
                         qOptsList.querySelectorAll('.quiz-option-item').forEach(item => {
-                            item.classList.remove('selected', 'correct-choice', 'incorrect-choice', 'missed-correct', 'disabled');
+                            item.classList.remove('selected', 'disabled');
                         });
                         card.classList.remove('submitted');
                         submitBtn.style.display = 'block';
