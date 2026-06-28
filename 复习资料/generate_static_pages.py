@@ -243,7 +243,8 @@ file_mapping = {
     "06_第六讲_团队工程开发.md": "06_engineering.html",
     "07_第七讲_项目支持活动(配置管理,度量,决策与根因分析).md": "07_support.html",
     "08_练习题.md": "08_exercises.html",
-    "09_2023年期末真题.md": "09_exam_2023.html"
+    "09_2023年期末真题.md": "09_exam_2023.html",
+    "10_历年期末真题整理.md": "10_exams_summary.html"
 }
 
 def process_all():
