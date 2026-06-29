@@ -1339,7 +1339,7 @@ def process_all():
         
         function initDashboardAndTabs(totalQuizzes) {
             const isTargetPage = currentFile === '09_exam_2023.html' || currentFile === '08_exercises.html';
-            const hasTabs = currentFile === '09_exam_2023.html';
+            const hasTabs = false;
             
             if (isTargetPage) {
                 const container = document.getElementById('markdown-rendered');
