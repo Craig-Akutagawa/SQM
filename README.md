@@ -20,7 +20,7 @@
 ```
 .
 ├── 复习资料/                  # 源文件
-│   ├── 00_课程导读与大纲.md
+│   ├── 00_索引.md
 │   ├── 01_第一讲_...md
 │   ├── ...
 │   ├── generate_static_pages.py  # 静态页面生成器
@@ -37,7 +37,7 @@
 python 复习资料/generate_static_pages.py
 
 # 直接在浏览器打开
-复习资料/html_version/00_课程导读与大纲.html
+index.html
 ```
 
 ## 📝 参与贡献

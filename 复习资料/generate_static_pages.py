@@ -234,7 +234,7 @@ def md_to_html(md_text):
     return "\n".join(html_lines)
 
 file_mapping = {
-    "00_课程导读与大纲.md": "index.html",
+    "00_索引.md": "index.html",
     "01_第一讲_软件质量与管理概述.md": "01_intro.html",
     "02_第二讲_软件过程的历史演变.md": "02_evolution.html",
     "03_第三讲_团队动力学(PSP,TSP,Scrum).md": "03_dynamics.html",
@@ -871,6 +871,21 @@ def process_all():
         .reset-all-btn:hover {
             background: var(--accent-red-bg);
         }
+        .export-btn {
+            background: var(--primary-gradient);
+            color: #ffffff;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+        }
+        .export-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
+        }
 
         /* Interactive Quiz Card */
         .quiz-card {
@@ -1437,6 +1452,11 @@ def process_all():
                     }
                 });
                 
+                const exportBtn = document.getElementById('dash-export-txt');
+                if (exportBtn) {
+                    exportBtn.addEventListener('click', exportQuizzesToText);
+                }
+                
                 window.totalQuizzesCount = totalQuizzes;
                 updateDashboard();
             }
@@ -1455,7 +1475,10 @@ def process_all():
                         </div>
                     </div>
                 </div>
-                <button class="reset-all-btn" id="dash-reset-all">🧹 重置本页所有练习记录</button>
+                <div class="dashboard-actions" style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                    <button class="export-btn" id="dash-export-txt">📥 导出题目与答案 (TXT)</button>
+                    <button class="reset-all-btn" id="dash-reset-all">🧹 重置本页所有练习记录</button>
+                </div>
             `;
             return dashboard;
         }
@@ -1473,6 +1496,67 @@ def process_all():
                 if (progressTextEl) progressTextEl.textContent = `${completed} / ${total} 题`;
                 if (progressBarEl) progressBarEl.style.width = `${progressPercent}%`;
             }
+        }
+
+        function stripHtml(html) {
+            const tmp = document.createElement("DIV");
+            tmp.innerHTML = html;
+            return tmp.textContent || tmp.innerText || "";
+        }
+
+        function exportQuizzesToText() {
+            let text = `软件质量与管理 - ${document.getElementById('current-page-title').textContent.trim()} - 导出题目和答案\n`;
+            text += `导出时间: ${new Date().toLocaleString()}\n`;
+            text += `==================================================\n\n`;
+            
+            const cards = Array.from(document.querySelectorAll('.quiz-card'));
+            cards.forEach((card, idx) => {
+                const qNum = idx + 1;
+                const qText = stripHtml(card.querySelector('.quiz-question-text').innerHTML).trim();
+                text += `第 ${qNum} 题: ${qText}\n`;
+                
+                // Find options
+                const optionsList = card.querySelector('.quiz-options-list');
+                const optionItems = Array.from(optionsList.querySelectorAll('.quiz-option-item'));
+                optionItems.forEach(item => {
+                    const letter = item.getAttribute('data-letter');
+                    const desc = stripHtml(item.querySelector('.option-desc').innerHTML).trim();
+                    text += `${letter}. ${desc}\n`;
+                });
+                
+                // Find correct answer & explanation
+                const hiddenUl = card.nextElementSibling;
+                let correctAnswer = "无";
+                let explanation = "无";
+                if (hiddenUl && hiddenUl.tagName === 'UL') {
+                    const lis = Array.from(hiddenUl.children);
+                    lis.forEach(li => {
+                        const liText = li.textContent.trim();
+                        if (liText.includes("正确答案")) {
+                            correctAnswer = liText.replace(/正确答案[：:]\\s*/, "").trim();
+                            correctAnswer = correctAnswer.replace(/^\\*\\*|\\*\\*$/g, "").trim();
+                        }
+                        if (liText.includes("解析")) {
+                            explanation = liText.replace(/解析[：:]\\s*/, "").trim();
+                            explanation = explanation.replace(/^\\*\\*|\\*\\*$/g, "").trim();
+                        }
+                    });
+                }
+                
+                text += `正确答案: ${correctAnswer}\n`;
+                text += `解析: ${explanation}\n`;
+                text += `--------------------------------------------------\n\n`;
+            });
+            
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${document.getElementById('current-page-title').textContent.trim()}_题目与答案.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
 
         function formatInteractiveQuizzes() {
@@ -1541,98 +1625,36 @@ def process_all():
                         `;
                         
                         optLi.addEventListener('click', () => {
-                            if (card.classList.contains('submitted')) return;
-                            
-                            // Allow toggling multiple options by default for flexibility
+                            // Toggle option selection
                             optLi.classList.toggle('selected');
                             
-                            const hasSelection = qOptsList.querySelector('.quiz-option-item.selected') !== null;
-                            submitBtn.disabled = !hasSelection;
+                            // Save answers immediately
+                            const selectedItems = Array.from(qOptsList.querySelectorAll('.quiz-option-item.selected'));
+                            const selectedLetters = selectedItems.map(item => item.getAttribute('data-letter'));
+                            
+                            if (selectedLetters.length > 0) {
+                                saveUserAnswer(currentQuizIdx, selectedLetters, true);
+                            } else {
+                                deleteUserAnswer(currentQuizIdx);
+                            }
+                            updateDashboard();
                         });
                         
                         qOptsList.appendChild(optLi);
                     });
                     card.appendChild(qOptsList);
                     
-                    const actionsDiv = document.createElement('div');
-                    actionsDiv.className = 'quiz-actions';
-                    
-                    const submitBtn = document.createElement('button');
-                    submitBtn.className = 'quiz-submit-btn';
-                    submitBtn.textContent = '保存答案';
-                    submitBtn.disabled = true;
-                    actionsDiv.appendChild(submitBtn);
-                    
-                    const resetBtn = document.createElement('button');
-                    resetBtn.className = 'quiz-reset-btn';
-                    resetBtn.textContent = '修改答案';
-                    resetBtn.style.display = 'none';
-                    actionsDiv.appendChild(resetBtn);
-                    
-                    card.appendChild(actionsDiv);
-                    
                     ul.parentNode.insertBefore(card, ul);
                     ul.style.display = 'none';
                     if (prevHeading) prevHeading.style.display = 'none';
                     
-                    const revealResult = (selectedLetters) => {
-                        if (!selectedLetters || !Array.isArray(selectedLetters)) selectedLetters = [];
-                        card.classList.add('submitted');
-                        submitBtn.style.display = 'none';
-                        resetBtn.style.display = 'block';
-                        
-                        qOptsList.querySelectorAll('.quiz-option-item').forEach(item => {
-                            item.classList.add('disabled');
-                            const letter = item.getAttribute('data-letter');
-                            const isSelected = selectedLetters.includes(letter);
-                            if (isSelected) {
-                                item.classList.add('selected');
-                            }
-                        });
-                        
-                        const resultDiv = document.createElement('div');
-                        resultDiv.className = 'quiz-result-panel';
-                        
-                        resultDiv.innerHTML = `
-                            <div class="result-alert-box alert-submitted">
-                                <span>💾 已保存你的答案：${selectedLetters.join(', ')}</span>
-                            </div>
-                        `;
-                        card.appendChild(resultDiv);
-                        
-                        saveUserAnswer(currentQuizIdx, selectedLetters, true);
-                        updateDashboard();
-                    };
-                    
-                    submitBtn.addEventListener('click', () => {
-                        const selectedItems = Array.from(qOptsList.querySelectorAll('.quiz-option-item.selected'));
-                        const selectedLetters = selectedItems.map(item => item.getAttribute('data-letter'));
-                        revealResult(selectedLetters);
-                    });
-                    
-                    resetBtn.addEventListener('click', () => {
-                        qOptsList.querySelectorAll('.quiz-option-item').forEach(item => {
-                            item.classList.remove('selected', 'disabled');
-                        });
-                        card.classList.remove('submitted');
-                        submitBtn.style.display = 'block';
-                        submitBtn.disabled = true;
-                        resetBtn.style.display = 'none';
-                        
-                        const res = card.querySelector('.quiz-result-panel');
-                        if (res) res.parentNode.removeChild(res);
-                        
-                        deleteUserAnswer(currentQuizIdx);
-                        updateDashboard();
-                    });
-                    
+                    // Load saved answer if any
                     const savedAns = loadUserAnswer(currentQuizIdx);
                     if (savedAns && savedAns.selected && Array.isArray(savedAns.selected)) {
                         savedAns.selected.forEach(letter => {
                             const optItem = qOptsList.querySelector(`.quiz-option-item[data-letter="${letter}"]`);
                             if (optItem) optItem.classList.add('selected');
                         });
-                        revealResult(savedAns.selected);
                     } else if (savedAns) {
                         deleteUserAnswer(currentQuizIdx);
                     }
